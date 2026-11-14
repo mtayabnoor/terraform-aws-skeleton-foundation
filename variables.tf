@@ -129,7 +129,7 @@ variable "eks_deletion_protection" {
 }
 
 variable "eks_endpoint_public_access" {
-  description = "Expose the Kubernetes API endpoint on the internet (still IAM-authenticated). Terraform running on GitHub-hosted runners needs this to install the Gateway API components."
+  description = "Expose the Kubernetes API endpoint on the internet (still IAM-authenticated). Terraform running on GitHub-hosted runners needs this to install Argo CD."
   type        = bool
   default     = true
 }
@@ -180,7 +180,7 @@ variable "eks_tags" {
 # Cluster access
 # ------------------------------------------------------------------------------
 variable "eks_enable_cluster_creator_admin_permissions" {
-  description = "Make the identity that creates the cluster (the Terraform / CI identity) a cluster admin. Required for Terraform to install the Gateway API components. Cannot be changed after creation."
+  description = "Make the identity that creates the cluster (the Terraform / CI identity) a cluster admin. Required for Terraform to install Argo CD. Cannot be changed after creation."
   type        = bool
   default     = true
 }
@@ -252,7 +252,7 @@ variable "eks_addons" {
       configuration_values        - JSON string with add-on configuration
       resolve_conflicts_on_update - OVERWRITE, PRESERVE or NONE
     vpc-cni, kube-proxy and coredns are required for a working cluster.
-    eks-pod-identity-agent is required by the AWS Load Balancer Controller.
+    eks-pod-identity-agent is required when enable_lb_controller = true.
   EOT
   type = map(object({
     version                     = optional(string)
@@ -269,84 +269,60 @@ variable "eks_addons" {
 }
 
 # ------------------------------------------------------------------------------
-# Gateway API (AWS Load Balancer Controller)
+# Gateway API: AWS Load Balancer Controller permissions
 # ------------------------------------------------------------------------------
-variable "enable_gateway_api" {
-  description = "Install the Gateway API CRDs, the AWS Load Balancer Controller and the GatewayClass(es). Only used when enable_eks = true."
+variable "enable_lb_controller" {
+  description = "Create the IAM role for the AWS Load Balancer Controller and bind it to the kube-system/aws-load-balancer-controller service account with EKS Pod Identity. The controller itself is installed by Argo CD. Only used when enable_eks = true."
   type        = bool
   default     = true
 }
 
-variable "lb_controller_chart_version" {
-  description = "Version of the aws-load-balancer-controller helm chart. Keep policies/aws-load-balancer-controller.json and the vendored Gateway API CRDs in step with it."
+# ------------------------------------------------------------------------------
+# Argo CD
+# ------------------------------------------------------------------------------
+variable "enable_argocd" {
+  description = "Install Argo CD into the cluster. Only used when enable_eks = true."
+  type        = bool
+  default     = true
+}
+
+variable "argocd_namespace" {
+  description = "Namespace Argo CD is installed into."
   type        = string
-  default     = "3.6.3"
+  default     = "argocd"
 }
 
-variable "lb_controller_replicas" {
-  description = "Replicas of the AWS Load Balancer Controller. Use 2 for prod."
-  type        = number
-  default     = 2
+variable "argocd_chart_version" {
+  description = "Version of the argo-cd helm chart (https://github.com/argoproj/argo-helm)."
+  type        = string
+  default     = "10.18.0"
 }
 
-variable "lb_controller_values" {
-  description = "Extra helm values for the aws-load-balancer-controller chart, merged over the module's values."
+variable "argocd_values" {
+  description = "Extra helm values for the argo-cd chart, merged over the module's values."
   type        = any
   default     = {}
 }
 
-variable "gateway_class_alb_name" {
-  description = "Name of the GatewayClass for Application Load Balancers (HTTPRoute, GRPCRoute)."
+variable "argocd_apps_chart_version" {
+  description = "Version of the argocd-apps helm chart that creates the root Application."
   type        = string
-  default     = "aws-alb"
+  default     = "2.0.8"
 }
 
-variable "gateway_class_nlb_enabled" {
-  description = "Also create a GatewayClass for Network Load Balancers (TCPRoute, UDPRoute, TLSRoute)."
-  type        = bool
-  default     = false
-}
-
-variable "gateway_class_nlb_name" {
-  description = "Name of the GatewayClass for Network Load Balancers."
-  type        = string
-  default     = "aws-nlb"
-}
-
-variable "eks_gateway" {
+variable "argocd_root_app" {
   description = <<-EOT
-    Shared Gateway that provisions one Application Load Balancer for the cluster.
-    Applications attach to it with HTTPRoute objects.
-      create              - create the Gateway (this creates an ALB, which costs money)
-      name / namespace    - where the Gateway lives
-      scheme              - internet-facing (ALB in the public subnets) or internal (private subnets)
-      certificate_arn     - ACM certificate ARN; adds an HTTPS:443 listener next to HTTP:80
-      allowed_routes_from - which namespaces may attach routes: All or Same
-      target_type         - ip (pod IPs, works with ClusterIP Services) or instance (NodePort)
+    Git repository Argo CD keeps the cluster in sync with. Leave null to install
+    Argo CD without any Application.
+      repo_url        - HTTPS URL of the Git repository
+      path            - folder in the repository with the manifests to apply
+      target_revision - branch, tag or commit
+    A private repository additionally needs repository credentials in Argo CD.
   EOT
   type = object({
-    create              = optional(bool, false)
-    name                = optional(string, "shared")
-    namespace           = optional(string, "gateway-system")
-    scheme              = optional(string, "internet-facing")
-    certificate_arn     = optional(string)
-    allowed_routes_from = optional(string, "All")
-    target_type         = optional(string, "ip")
+    repo_url        = string
+    path            = optional(string, "platform")
+    target_revision = optional(string, "main")
   })
-  default = {}
-
-  validation {
-    condition     = contains(["internet-facing", "internal"], var.eks_gateway.scheme)
-    error_message = "eks_gateway.scheme must be internet-facing or internal."
-  }
-
-  validation {
-    condition     = contains(["All", "Same"], var.eks_gateway.allowed_routes_from)
-    error_message = "eks_gateway.allowed_routes_from must be All or Same."
-  }
-
-  validation {
-    condition     = contains(["ip", "instance"], var.eks_gateway.target_type)
-    error_message = "eks_gateway.target_type must be ip or instance."
-  }
+  default = null
 }

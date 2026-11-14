@@ -127,12 +127,16 @@ output "lb_controller_iam_role_arn" {
   value       = try(aws_iam_role.lb_controller[0].arn, null)
 }
 
-output "gateway_class_names" {
-  description = "GatewayClass names installed in the cluster."
-  value       = local.gateway_enabled ? [for c in local.gateway_classes : c.metadata.name] : []
+output "lb_controller_helm_values" {
+  description = "Cluster specific helm values for the aws-load-balancer-controller chart. Copy them into the controller's Argo CD Application (examples/gitops/platform/aws-load-balancer-controller.yaml)."
+  value = local.eks_enabled ? {
+    clusterName = aws_eks_cluster.this[0].name
+    region      = data.aws_region.current.region
+    vpcId       = aws_vpc.this.id
+  } : null
 }
 
-output "gateway" {
-  description = "Name and namespace of the shared Gateway, to use as parentRef in HTTPRoutes (null when not created)."
-  value       = local.gateway_enabled && var.eks_gateway.create ? { name = local.gateway_name, namespace = local.gateway_namespace } : null
+output "argocd_namespace" {
+  description = "Namespace Argo CD runs in (null when not installed)."
+  value       = local.argocd_enabled ? var.argocd_namespace : null
 }

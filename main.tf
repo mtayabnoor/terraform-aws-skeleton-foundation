@@ -20,8 +20,9 @@ locals {
   eks_cluster_name = coalesce(var.eks_cluster_name, "${var.name}-eks")
   eks_tags         = merge(var.tags, var.eks_tags)
 
-  # Gateway API (AWS Load Balancer Controller) is only possible on top of the cluster.
-  gateway_enabled = local.eks_enabled && var.enable_gateway_api
+  # Both only make sense on top of the cluster.
+  lb_controller_enabled = local.eks_enabled && var.enable_lb_controller
+  argocd_enabled        = local.eks_enabled && var.enable_argocd
 
   # Subnet discovery tags used by the AWS Load Balancer Controller to place
   # internet-facing (public) and internal (private) load balancers.

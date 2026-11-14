@@ -1,0 +1,55 @@
+# AWS Load Balancer Controller: turns Gateway / HTTPRoute objects into ALBs.
+# Its AWS permissions come from the IAM role the Terraform module binds to the
+# kube-system/aws-load-balancer-controller service account (EKS Pod Identity),
+# so the namespace and service account name below must stay as they are.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aws-load-balancer-controller
+  namespace: argocd
+  annotations:
+    # After the Gateway API CRDs: the controller only enables its Gateway
+    # support when it finds them at start-up.
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://aws.github.io/eks-charts
+    chart: aws-load-balancer-controller
+    targetRevision: 3.6.3
+    helm:
+      valuesObject:
+        # From: terraform output lb_controller_helm_values
+        clusterName: CHANGE_ME
+        region: CHANGE_ME
+        vpcId: CHANGE_ME
+        replicaCount: 1 # use 2 for prod
+        serviceAccount:
+          create: true
+          name: aws-load-balancer-controller
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - RespectIgnoreDifferences=true
+  # The chart generates a new webhook certificate on every render. Without this
+  # Argo CD would see a difference forever and keep replacing the certificate.
+  ignoreDifferences:
+    - kind: Secret
+      name: aws-load-balancer-tls
+      jsonPointers:
+        - /data
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle

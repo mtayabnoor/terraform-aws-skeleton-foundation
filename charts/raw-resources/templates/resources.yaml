@@ -1,4 +1,0 @@
-{{- range .Values.resources }}
----
-{{ fromJson . | toYaml }}
-{{- end }}

@@ -1,0 +1,82 @@
+# GatewayClass and one shared Gateway. The Gateway makes the AWS Load Balancer
+# Controller create one Application Load Balancer; applications attach to it
+# with HTTPRoute objects.
+#
+# SkipDryRunOnMissingResource lets the first sync start before the CRDs of
+# these kinds exist (they are installed in the earlier waves).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gateway-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: aws-alb
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  controllerName: gateway.k8s.aws/alb
+---
+# Default for every Service behind the Gateway: register pod IPs directly, so
+# normal ClusterIP Services work (no NodePort needed).
+apiVersion: gateway.k8s.aws/v1
+kind: TargetGroupConfiguration
+metadata:
+  name: shared-defaults
+  namespace: gateway-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  defaultConfiguration:
+    targetType: ip
+---
+apiVersion: gateway.k8s.aws/v1
+kind: LoadBalancerConfiguration
+metadata:
+  name: shared
+  namespace: gateway-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  scheme: internet-facing # or: internal
+  defaultTargetGroupConfiguration:
+    name: shared-defaults
+  # For HTTPS, add an ACM certificate here and the https listener below:
+  # listenerConfigurations:
+  #   - protocolPort: HTTPS:443
+  #     defaultCertificate: arn:aws:acm:eu-central-1:<account-id>:certificate/<id>
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: shared
+  namespace: gateway-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  gatewayClassName: aws-alb
+  infrastructure:
+    parametersRef:
+      group: gateway.k8s.aws
+      kind: LoadBalancerConfiguration
+      name: shared
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+    # - name: https
+    #   protocol: HTTPS
+    #   port: 443
+    #   allowedRoutes:
+    #     namespaces:
+    #       from: All
