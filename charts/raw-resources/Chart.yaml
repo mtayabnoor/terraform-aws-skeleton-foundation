@@ -1,5 +1,0 @@
-apiVersion: v2
-name: raw-resources
-description: Installs the JSON-encoded Kubernetes objects passed in .Values.resources as-is.
-type: application
-version: 1.0.0

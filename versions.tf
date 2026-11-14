@@ -6,7 +6,7 @@ terraform {
       source  = "hashicorp/aws"
       version = ">= 6.9"
     }
-    # Only used when enable_eks and enable_gateway_api are true. The provider
+    # Only used when enable_eks and enable_argocd are true. The provider
     # itself is configured by the calling root module (see README).
     helm = {
       source  = "hashicorp/helm"
