@@ -1,0 +1,3 @@
+# List of Kubernetes objects, each one a JSON-encoded string.
+# Filled in by Terraform (gateway.tf).
+resources: []
