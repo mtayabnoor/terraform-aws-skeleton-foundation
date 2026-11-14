@@ -31,7 +31,7 @@ resource "aws_subnet" "public" {
   availability_zone       = element(local.azs, count.index)
   map_public_ip_on_launch = var.map_public_ip_on_launch
 
-  tags = merge(var.tags, {
+  tags = merge(var.tags, local.eks_public_subnet_tags, var.public_subnet_tags, {
     Name = "${var.name}-public-${element(var.azs, count.index)}"
     Tier = "public"
   })
@@ -44,7 +44,7 @@ resource "aws_subnet" "private" {
   cidr_block        = local.private_subnets[count.index]
   availability_zone = element(local.azs, count.index)
 
-  tags = merge(var.tags, {
+  tags = merge(var.tags, local.eks_private_subnet_tags, var.private_subnet_tags, {
     Name = "${var.name}-private-${element(var.azs, count.index)}"
     Tier = "private"
   })

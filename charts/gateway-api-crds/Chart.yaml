@@ -1,0 +1,12 @@
+apiVersion: v2
+name: gateway-api-crds
+description: Kubernetes Gateway API CRDs (standard channel), vendored unchanged from the upstream release.
+type: application
+# Keep version and appVersion equal to the vendored Gateway API release.
+# Terraform upgrades the release when this version changes.
+# Update with scripts/update-gateway-api-crds.sh <version>.
+version: 1.6.0
+appVersion: v1.6.0
+home: https://gateway-api.sigs.k8s.io
+sources:
+  - https://github.com/kubernetes-sigs/gateway-api
