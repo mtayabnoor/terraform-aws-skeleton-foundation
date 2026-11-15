@@ -317,7 +317,7 @@ variable "argocd_root_app" {
       repo_url        - HTTPS URL of the Git repository
       path            - folder in the repository with the manifests to apply
       target_revision - branch, tag or commit
-    A private repository additionally needs repository credentials in Argo CD.
+    For a private repository also set argocd_repo_token.
   EOT
   type = object({
     repo_url        = string
@@ -325,4 +325,17 @@ variable "argocd_root_app" {
     target_revision = optional(string, "main")
   })
   default = null
+}
+
+variable "argocd_repo_token" {
+  description = "Token that lets Argo CD read a private argocd_root_app repository over HTTPS, e.g. a GitHub fine-grained personal access token with read-only Contents permission on that repository. Leave null for a public repository. The value is stored in the Terraform state."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "argocd_repo_username" {
+  description = "Username sent together with argocd_repo_token. GitHub accepts any non-empty value."
+  type        = string
+  default     = "git"
 }
