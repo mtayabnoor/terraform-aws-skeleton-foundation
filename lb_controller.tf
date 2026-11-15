@@ -1,14 +1,13 @@
 # ------------------------------------------------------------------------------
-# Gateway API on EKS (replaces Ingress): AWS side
+# AWS Load Balancer Controller: AWS permissions
 #
-# Gateway / HTTPRoute objects are turned into Application Load Balancers by the
-# AWS Load Balancer Controller. Terraform only prepares what lives in AWS: the
-# controller's IAM role, bound to its service account with EKS Pod Identity
-# (needs the eks-pod-identity-agent add-on).
+# The controller turns Gateway / HTTPRoute objects into Application Load
+# Balancers. This file only creates what it needs in AWS: an IAM role with the
+# upstream policy (policies/), bound to the controller's service account with
+# EKS Pod Identity (needs the eks-pod-identity-agent add-on).
 #
-# Everything inside the cluster (Gateway API CRDs, the controller itself, the
-# GatewayClass and Gateway) is installed by Argo CD from Git, see argocd.tf and
-# examples/gitops.
+# The controller itself, the Gateway API CRDs, the GatewayClass and the Gateway
+# are installed by Argo CD from Git, see argocd.tf and examples/gitops.
 # ------------------------------------------------------------------------------
 data "aws_iam_policy_document" "lb_controller_assume" {
   count = local.lb_controller_enabled ? 1 : 0
