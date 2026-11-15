@@ -130,8 +130,27 @@ Argo CD then installs, in order: the Gateway API CRDs, the AWS Load Balancer
 Controller, a `GatewayClass` named `aws-alb` with one shared `Gateway` (this
 creates one Application Load Balancer), and everything under `apps/`.
 
-A **private** repository needs credentials in Argo CD before the first sync,
-for example with the Argo CD CLI: `argocd repo add <url> --username <user> --password <token>`.
+For a **private** repository, also pass a read-only token. With GitHub, create
+a fine-grained personal access token limited to that repository with read-only
+"Contents" permission:
+
+```hcl
+variable "gitops_repo_token" {
+  type      = string
+  sensitive = true
+}
+
+module "foundation" {
+  # ...
+  argocd_root_app   = { repo_url = "https://github.com/<you>/<gitops-repo>.git" }
+  argocd_repo_token = var.gitops_repo_token
+}
+```
+
+Supply the value outside Git, for example as the environment variable
+`TF_VAR_gitops_repo_token` (a secret in CI). It is hidden in plan output but
+stored in the Terraform state, so keep the state bucket private. When the token
+expires, replace the value and apply again.
 
 Applications attach to the shared Gateway with an `HTTPRoute`:
 
@@ -204,6 +223,7 @@ All inputs with their descriptions and defaults are in `variables.tf`.
 | `argocd_chart_version` | `10.18.0` | Version of the `argo-cd` helm chart |
 | `argocd_values` | `{}` | Extra helm values for Argo CD |
 | `argocd_root_app` | not created | Git repository Argo CD syncs the cluster from |
+| `argocd_repo_token` | `null` | Read-only token for a private `argocd_root_app` repository |
 
 ## Upgrading from v1.0.0
 

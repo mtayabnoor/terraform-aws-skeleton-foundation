@@ -31,6 +31,25 @@ locals {
   }
 }
 
+# Read access to a private Git repository: with argocd_repo_token set, the chart
+# creates the repository credential (a Secret in the Argo CD namespace) for the
+# repository of the root Application.
+locals {
+  argocd_repo_token_set = nonsensitive(var.argocd_repo_token != null)
+
+  argocd_repository_values = local.argocd_repo_token_set ? {
+    configs = {
+      repositories = {
+        root = {
+          type     = "git"
+          url      = try(var.argocd_root_app.repo_url, "")
+          username = var.argocd_repo_username
+        }
+      }
+    }
+  } : {}
+}
+
 resource "helm_release" "argocd" {
   count = local.argocd_enabled ? 1 : 0
 
@@ -46,8 +65,24 @@ resource "helm_release" "argocd" {
 
   values = [
     yamlencode(local.argocd_values),
+    yamlencode(local.argocd_repository_values),
     yamlencode(var.argocd_values),
   ]
+
+  # The token is passed separately so it never shows up in plan output.
+  set_sensitive = local.argocd_repo_token_set ? [
+    {
+      name  = "configs.repositories.root.password"
+      value = var.argocd_repo_token
+    },
+  ] : []
+
+  lifecycle {
+    precondition {
+      condition     = !local.argocd_repo_token_set || try(startswith(var.argocd_root_app.repo_url, "https://"), false)
+      error_message = "argocd_repo_token needs argocd_root_app with an https:// repo_url."
+    }
+  }
 
   depends_on = [
     # Argo CD pods need nodes and DNS.
