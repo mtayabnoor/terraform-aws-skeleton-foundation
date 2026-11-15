@@ -20,7 +20,7 @@ prod. EKS is off by default (`enable_eks = false`).
 |------|-----------------|
 | `vpc.tf` | VPC, public/private subnets, internet gateway, NAT gateway(s), route tables |
 | `eks.tf` | Everything EKS: control plane, IAM roles, add-ons, managed node groups, cluster access |
-| `gateway.tf` | IAM role and Pod Identity for the AWS Load Balancer Controller |
+| `lb_controller.tf` | IAM role and Pod Identity for the AWS Load Balancer Controller |
 | `argocd.tf` | Argo CD and the optional root Application |
 | `main.tf` | Shared locals and data sources |
 | `variables.tf` / `outputs.tf` | Inputs and outputs |
