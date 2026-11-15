@@ -1,0 +1,21 @@
+name: Tag on Merge
+# Releases the module: creates a new semver tag (vX.Y.Z) on every push to main,
+# including merged pull requests. Callers pin the module with ?ref=vX.Y.Z.
+#
+# Bumps the patch version by default. To bump major/minor instead:
+#   - merged PR: add a "major" or "minor" label to the PR
+#   - direct push: put "#major" or "#minor" in the commit message
+#
+# The logic lives in the shared workflow in mtayabnoor/github-workflows.
+on:
+  push:
+    branches: [main]
+
+# A reusable workflow can only use the permissions granted here
+permissions:
+  contents: write      # push the tag
+  pull-requests: read  # read the merged PR's labels
+
+jobs:
+  tag:
+    uses: mtayabnoor/github-workflows/.github/workflows/tag-on-merge.yml@v1.0.3
