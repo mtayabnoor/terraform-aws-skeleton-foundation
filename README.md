@@ -225,6 +225,17 @@ All inputs with their descriptions and defaults are in `variables.tf`.
 | `argocd_root_app` | not created | Git repository Argo CD syncs the cluster from |
 | `argocd_repo_token` | `null` | Read-only token for a private `argocd_root_app` repository |
 
+## Releases
+
+Every merge to `main` is tagged automatically by `.github/workflows/tag-on-merge.yml`:
+
+- default: patch bump (`v1.1.0` -> `v1.1.1`)
+- pull request labelled `minor`: `v1.1.0` -> `v1.2.0`
+- pull request labelled `major`: `v1.1.0` -> `v2.0.0`
+
+For a direct push, put `#minor` or `#major` in the commit message. Use `major`
+whenever callers have to change their code, for example a removed input.
+
 ## Upgrading from v1.0.0
 
 - The module now requires AWS provider >= 6.9 and the helm provider. Update the
