@@ -1,72 +1,21 @@
 name: Tag on Merge
 # Releases the module: creates a new semver tag (vX.Y.Z) on every push to main,
 # including merged pull requests. Callers pin the module with ?ref=vX.Y.Z.
-# Same logic as tag-on-merge.yml in mtayabnoor/github-workflows.
+#
 # Bumps the patch version by default. To bump major/minor instead:
 #   - merged PR: add a "major" or "minor" label to the PR
 #   - direct push: put "#major" or "#minor" in the commit message
+#
+# The logic lives in the shared workflow in mtayabnoor/github-workflows.
 on:
   push:
     branches: [main]
 
+# A reusable workflow can only use the permissions granted here
 permissions:
-  contents: write        # needed to push the tag
-  pull-requests: read   # needed to read the merged PR's labels
-
-concurrency:
-  group: tag-on-merge
-  cancel-in-progress: false
+  contents: write      # push the tag
+  pull-requests: read  # read the merged PR's labels
 
 jobs:
   tag:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          fetch-depth: 0   # full history and tags
-
-      - name: Compute next version
-        id: version
-        env:
-          GH_TOKEN: ${{ github.token }}
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: |
-          # Skip if this commit is already tagged (e.g. a re-run)
-          existing=$(git tag --points-at "$GITHUB_SHA" --list 'v[0-9]*.[0-9]*.[0-9]*' | head -n 1)
-          if [[ -n "$existing" ]]; then
-            echo "Commit already tagged as $existing, skipping."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)
-          latest=${latest:-v0.0.0}
-          IFS=. read -r major minor patch <<< "${latest#v}"
-
-          # Labels of the PR this commit was merged from (empty for direct pushes)
-          labels=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
-            --jq '[.[0].labels[]?.name] | join(",")' 2>/dev/null || true)
-
-          if [[ ",$labels," == *",major,"* || "$COMMIT_MESSAGE" == *"#major"* ]]; then
-            major=$((major + 1)); minor=0; patch=0
-          elif [[ ",$labels," == *",minor,"* || "$COMMIT_MESSAGE" == *"#minor"* ]]; then
-            minor=$((minor + 1)); patch=0
-          else
-            patch=$((patch + 1))
-          fi
-
-          next="v${major}.${minor}.${patch}"
-          echo "Latest tag: $latest -> next tag: $next"
-          echo "tag=$next" >> "$GITHUB_OUTPUT"
-
-      - name: Create and push tag
-        if: steps.version.outputs.skip != 'true'
-        env:
-          TAG: ${{ steps.version.outputs.tag }}
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" -m "$TAG: ${COMMIT_MESSAGE%%$'\n'*}"
-          git push origin "$TAG"
+    uses: mtayabnoor/github-workflows/.github/workflows/tag-on-merge.yml@v1.0.3
